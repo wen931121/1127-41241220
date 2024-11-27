@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google 認證</title>
+    <title>認證筆記系統</title>
     <!-- 引入 Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -50,7 +50,7 @@
 
 <body>
     <div class="container">
-        <h2 class="text-center">Google 認證</h2>
+        <h2 class="text-center">認證筆記系統</h2>
 
         <div class="btn-container">
             <button id="register-btn" class="btn btn-primary btn-custom">註冊</button>
@@ -141,11 +141,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    您已經註冊過，幫您自動登入。
+                    註冊成功，幫您自動登入。
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="go-to-login">前往登入</button>
                 </div>
             </div>
         </div>
@@ -169,23 +168,6 @@
     </div>
 </div>
 
-<!-- 註冊成功提示 Modal -->
-<div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="registerModalLabel">註冊提示</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                您已經註冊成功，請使用登入按鈕進行登入。
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 
     <!-- 引入 Firebase SDK -->
@@ -288,14 +270,24 @@ document.getElementById('register-btn').addEventListener('click', () => {
 
 
         document.getElementById('logout-btn').addEventListener('click', () => {
-            signOut(auth).then(() => {
-                document.getElementById('login-btn').style.display = 'inline-block';
-                document.getElementById('register-btn').style.display = 'inline-block';
-                document.getElementById('logout-btn').style.display = 'none';
-                document.getElementById('member-info-btn').style.display = 'none';
-                document.getElementById('user-info').innerHTML = '';
-            });
-        });
+    signOut(auth).then(() => {
+        // 清除頁面上的筆記資料
+        document.getElementById('note-section').style.display = 'none';
+        document.getElementById('user-info').innerHTML = '';
+        document.getElementById('note-list-container').innerHTML = ''; // 清空筆記列表
+        
+        // 清空筆記輸入欄位
+        document.getElementById('note-title').value = ''; // 清空標題欄位
+        document.getElementById('note-content').value = ''; // 清空內容欄位
+
+        document.getElementById('login-btn').style.display = 'inline-block';
+        document.getElementById('register-btn').style.display = 'inline-block';
+        document.getElementById('logout-btn').style.display = 'none';
+        document.getElementById('member-info-btn').style.display = 'none';
+    });
+});
+
+
 
         document.getElementById('member-info-btn').addEventListener('click', () => {
             const user = auth.currentUser;
@@ -308,116 +300,217 @@ document.getElementById('register-btn').addEventListener('click', () => {
             userInfoModal.show();
         });
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                document.getElementById('login-btn').style.display = 'none';
-                document.getElementById('register-btn').style.display = 'none';
-                document.getElementById('logout-btn').style.display = 'inline-block';
-                document.getElementById('member-info-btn').style.display = 'inline-block';
-                document.getElementById('note-section').style.display = 'block';
+ // 在 auth.onAuthStateChanged 裡
+auth.onAuthStateChanged(user => {
+    if (user) {
+        // 顯示登錄後的界面
+        document.getElementById('login-btn').style.display = 'none';
+        document.getElementById('register-btn').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'inline-block';
+        document.getElementById('member-info-btn').style.display = 'inline-block';
+        document.getElementById('note-section').style.display = 'block';
 
-                const sanitizedEmail = user.email.replace(/[@.]/g, match => match === '@' ? '_at_' : '_dot_');
-                const userNotesRef = ref(database, 'notes/' + sanitizedEmail);
+        const sanitizedEmail = user.email.replace(/[@.]/g, match => match === '@' ? '_at_' : '_dot_');
+        const userNotesRef = ref(database, 'notes/' + sanitizedEmail);
 
-                // 儲存筆記
-                document.getElementById('save-note-btn').addEventListener('click', () => {
-                    const title = document.getElementById('note-title').value;
-                    const content = document.getElementById('note-content').value;
-                    if (title && content) {
-                        const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + new Date().getTime());
-                        set(noteRef, {
-                            title: title,
-                            content: content
-                        }).then(() => {
-                            loadNotes();
-                        });
-                    } else {
-                        alert('請輸入筆記標題和內容');
-                    }
-                });
+        // 儲存筆記
+document.getElementById('save-note-btn').addEventListener('click', () => {
+    const title = document.getElementById('note-title').value;
+    const content = document.getElementById('note-content').value;
+    const user = auth.currentUser; // 確保是當前用戶的資料
+    if (user && title && content) {
+        const sanitizedEmail = user.email.replace(/[@.]/g, match => match === '@' ? '_at_' : '_dot_');
+        const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + new Date().getTime()); // 基於用戶的 email 儲存
+        set(noteRef, {
+            title: title,
+            content: content
+        }).then(() => {
+            loadNotes();
+        }).catch((error) => {
+            alert('儲存筆記時發生錯誤: ' + error.message);
+        });
+    } else {
+        alert('請輸入筆記標題和內容');
+    }
+});
 
-                // 顯示筆記列表
-                function loadNotes() {
-                    const notesListContainer = document.getElementById('note-list-container');
-                    notesListContainer.innerHTML = '';
 
-                    get(userNotesRef).then(snapshot => {
-                        if (snapshot.exists()) {
-                            snapshot.forEach(noteSnapshot => {
-                                const noteKey = noteSnapshot.key;
-                                const note = noteSnapshot.val();
-                                const noteElement = document.createElement('div');
-                                noteElement.classList.add('note-item');
-                                noteElement.innerHTML = `
-                                    <h5 contenteditable="false" id="title-${noteKey}">${note.title}</h5>
-                                    <p contenteditable="false" id="content-${noteKey}">${note.content}</p>
-                                    <button class="btn btn-warning btn-sm edit-btn" data-note-key="${noteKey}">編輯</button>
-                                    <button class="btn btn-danger btn-sm delete-btn" data-note-key="${noteKey}">刪除</button>
-                                `;
-                                notesListContainer.appendChild(noteElement);
+        // 顯示筆記列表
+        function loadNotes() {
+            const notesListContainer = document.getElementById('note-list-container');
+            notesListContainer.innerHTML = '';
 
-                                // 編輯筆記
-                                const editButton = noteElement.querySelector('.edit-btn');
-                                editButton.addEventListener('click', () => {
-                                    const noteKey = editButton.dataset.noteKey;
-                                    const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + noteKey);
-                                    get(noteRef).then(noteSnapshot => {
-                                        const noteData = noteSnapshot.val();
-                                        document.getElementById('edit-note-title').value = noteData.title;
-                                        document.getElementById('edit-note-content').value = noteData.content;
+            get(userNotesRef).then(snapshot => {
+                if (snapshot.exists()) {
+                    snapshot.forEach(noteSnapshot => {
+                        const noteKey = noteSnapshot.key;
+                        const note = noteSnapshot.val();
+                        const noteElement = document.createElement('div');
+                        noteElement.classList.add('note-item');
+                        noteElement.innerHTML = `
+                            <h5 contenteditable="false" id="title-${noteKey}">${note.title}</h5>
+                            <p contenteditable="false" id="content-${noteKey}">${note.content}</p>
+                            <button class="btn btn-warning btn-sm edit-btn" data-note-key="${noteKey}">編輯</button>
+                            <button class="btn btn-danger btn-sm delete-btn" data-note-key="${noteKey}">刪除</button>
+                        `;
+                        notesListContainer.appendChild(noteElement);
 
-                                        // 顯示編輯 Modal
-                                        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
-                                        editModal.show();
+                        // 編輯筆記
+                        const editButton = noteElement.querySelector('.edit-btn');
+                        editButton.addEventListener('click', () => {
+                            const noteKey = editButton.dataset.noteKey;
+                            const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + noteKey);
+                            get(noteRef).then(noteSnapshot => {
+                                const noteData = noteSnapshot.val();
+                                document.getElementById('edit-note-title').value = noteData.title;
+                                document.getElementById('edit-note-content').value = noteData.content;
 
-                                        // 保存修改
-                                        const confirmEditBtn = document.getElementById('confirmEditBtn');
-                                        confirmEditBtn.onclick = function () {
-                                            const updatedTitle = document.getElementById('edit-note-title').value;
-                                            const updatedContent = document.getElementById('edit-note-content').value;
-                                            if (updatedTitle && updatedContent) {
-                                                update(noteRef, {
-                                                    title: updatedTitle,
-                                                    content: updatedContent
-                                                }).then(() => {
-                                                    loadNotes();
-                                                    editModal.hide();
-                                                });
-                                            } else {
-                                                alert('請輸入新的標題和內容');
-                                            }
-                                        };
-                                    });
-                                });
+                                // 顯示編輯 Modal
+                                const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+                                editModal.show();
 
-                                // 刪除筆記
-                                const deleteButton = noteElement.querySelector('.delete-btn');
-                                deleteButton.addEventListener('click', () => {
-                                    const noteKey = deleteButton.dataset.noteKey;
-                                    const deleteBtn = document.getElementById('confirmDeleteBtn');
-
-                                    // Show modal
-                                    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-                                    deleteModal.show();
-
-                                    // Confirm delete action
-                                    deleteBtn.onclick = function () {
-                                        const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + noteKey);
-                                        remove(noteRef).then(() => {
+                                // 保存修改
+                                const confirmEditBtn = document.getElementById('confirmEditBtn');
+                                confirmEditBtn.onclick = function () {
+                                    const updatedTitle = document.getElementById('edit-note-title').value;
+                                    const updatedContent = document.getElementById('edit-note-content').value;
+                                    if (updatedTitle && updatedContent) {
+                                        update(noteRef, {
+                                            title: updatedTitle,
+                                            content: updatedContent
+                                        }).then(() => {
                                             loadNotes();
-                                            deleteModal.hide();
+                                            editModal.hide();
                                         });
-                                    };
-                                });
+                                    } else {
+                                        alert('請輸入新的標題和內容');
+                                    }
+                                };
                             });
-                        }
+                        });
+
+                        // 刪除筆記
+                        const deleteButton = noteElement.querySelector('.delete-btn');
+                        deleteButton.addEventListener('click', () => {
+                            const noteKey = deleteButton.dataset.noteKey;
+                            const deleteBtn = document.getElementById('confirmDeleteBtn');
+
+                            // 顯示刪除 Modal
+                            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                            deleteModal.show();
+
+                            // 確認刪除
+                            deleteBtn.onclick = function () {
+                                const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + noteKey);
+                                remove(noteRef).then(() => {
+                                    loadNotes();
+                                    deleteModal.hide();
+                                }).catch((error) => {
+                                    alert('刪除筆記時發生錯誤: ' + error.message);
+                                });
+                            };
+                        });
                     });
                 }
-                loadNotes();
-            } else {
-                document.getElementById('note-section').style.display = 'none';
+            }).catch((error) => {
+                alert('載入筆記時發生錯誤: ' + error.message);
+            });
+        }
+
+        loadNotes();
+    } else {
+        // 用戶登出後，隱藏筆記區域
+        document.getElementById('note-section').style.display = 'none';
+    }
+});
+
+
+// 顯示筆記列表
+function loadNotes() {
+    const notesListContainer = document.getElementById('note-list-container');
+    notesListContainer.innerHTML = ''; // 清空舊的筆記列表
+
+    const user = auth.currentUser; // 當前用戶
+    if (user) {
+        const sanitizedEmail = user.email.replace(/[@.]/g, match => match === '@' ? '_at_' : '_dot_');
+        const userNotesRef = ref(database, 'notes/' + sanitizedEmail); // 確保載入的是該用戶的筆記
+
+        get(userNotesRef).then(snapshot => {
+            if (snapshot.exists()) {
+                snapshot.forEach(noteSnapshot => {
+                    const noteKey = noteSnapshot.key;
+                    const note = noteSnapshot.val();
+                    const noteElement = document.createElement('div');
+                    noteElement.classList.add('note-item');
+                    noteElement.innerHTML = `
+                        <h5 contenteditable="false" id="title-${noteKey}">${note.title}</h5>
+                        <p contenteditable="false" id="content-${noteKey}">${note.content}</p>
+                        <button class="btn btn-warning btn-sm edit-btn" data-note-key="${noteKey}">編輯</button>
+                        <button class="btn btn-danger btn-sm delete-btn" data-note-key="${noteKey}">刪除</button>
+                    `;
+                    notesListContainer.appendChild(noteElement);
+
+                    // 編輯和刪除邏輯
+                    addEditDeleteHandlers(noteKey, sanitizedEmail);
+                });
             }
+        }).catch((error) => {
+            alert('載入筆記時發生錯誤: ' + error.message);
         });
+    }
+}
+
+function addEditDeleteHandlers(noteKey, sanitizedEmail) {
+    // 編輯筆記
+    const editButton = document.querySelector(`[data-note-key="${noteKey}"].edit-btn`);
+    editButton.addEventListener('click', () => {
+        const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + noteKey);
+        get(noteRef).then(noteSnapshot => {
+            const noteData = noteSnapshot.val();
+            document.getElementById('edit-note-title').value = noteData.title;
+            document.getElementById('edit-note-content').value = noteData.content;
+
+            const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+            editModal.show();
+
+            document.getElementById('confirmEditBtn').onclick = function () {
+                const updatedTitle = document.getElementById('edit-note-title').value;
+                const updatedContent = document.getElementById('edit-note-content').value;
+                if (updatedTitle && updatedContent) {
+                    update(noteRef, {
+                        title: updatedTitle,
+                        content: updatedContent
+                    }).then(() => {
+                        loadNotes();
+                        editModal.hide();
+                    });
+                } else {
+                    alert('請輸入新的標題和內容');
+                }
+            };
+        });
+    });
+
+    // 刪除筆記
+    const deleteButton = document.querySelector(`[data-note-key="${noteKey}"].delete-btn`);
+    deleteButton.addEventListener('click', () => {
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+        document.getElementById('confirmDeleteBtn').onclick = function () {
+            const noteRef = ref(database, 'notes/' + sanitizedEmail + '/' + noteKey);
+            remove(noteRef).then(() => {
+                loadNotes();
+                deleteModal.hide();
+            }).catch((error) => {
+                alert('刪除筆記時發生錯誤: ' + error.message);
+            });
+        };
+    });
+}
+
+
+
+
     </script>
 
     <!-- 引入 Bootstrap 的 JavaScript (包含 modal 功能) -->
